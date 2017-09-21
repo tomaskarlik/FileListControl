@@ -21,8 +21,8 @@
 		</tr>
 	</thead>
 		<tbody>
+			<tr n:if="$parent !== NULL"><td colspan="4"><a n:href="this path => $parent"><span class="glyphicon glyphicon-arrow-left"></span></a></td></tr>
 			{if (count($directories) || count($files))}
-				<tr n:if="$parent !== NULL"><td colspan="4"><a n:href="this path => $parent"><span class="glyphicon glyphicon-arrow-left"></span></a></td></tr>
 				<tr n:foreach="$directories as $directory">
 					<td><span class="glyphicon glyphicon-folder-close"></span> <a n:href="this path => $control->getRelativePath($directory->getRealPath())" title="{$directory->getRealPath()|relative}">{$directory->getFilename()}</a></td>
 					<td class="text-right">{$directory->getMTime()|date:'d.m.Y H:i:s'}</td>
