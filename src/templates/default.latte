@@ -1,0 +1,45 @@
+<div n:foreach="$flashes as $flash" class="alert {$flash->type}">
+	<button type="button" class="close" data-dismiss="alert">&times;</button>{$flash->message}
+</div>
+<ol class="breadcrumb" n:if="$breadcrumbs">
+	<li><a n:href="this"><span class="glyphicon glyphicon-folder-open"></span></a></li>
+	{foreach $breadcrumbs as $bcPath => $bc}
+		{if $iterator->last}
+			<li class="active">{$bc}</li>
+		{else}
+			<li><a n:href="this path => $bcPath">{$bc}</a></li>
+		{/if}
+	{/foreach}
+</ol>
+<table class="table table-striped table-hover">
+	<thead>
+		<tr>
+			<th style="width: 50%">Soubor</th>
+			<th class="text-right">Datum</th>
+			<th class="text-right">Velikost</th>
+			<th>&nbsp;</th>
+		</tr>
+	</thead>
+		<tbody>
+			{if (count($directories) || count($files))}
+				<tr n:if="$parent !== NULL"><td colspan="4"><a n:href="this path => $parent"><span class="glyphicon glyphicon-arrow-left"></span></a></td></tr>
+				<tr n:foreach="$directories as $directory">
+					<td><span class="glyphicon glyphicon-folder-close"></span> <a n:href="this path => $control->getRelativePath($directory->getRealPath())" title="{$directory->getRealPath()|relative}">{$directory->getFilename()}</a></td>
+					<td class="text-right">{$directory->getMTime()|date:'d.m.Y H:i:s'}</td>
+					<td>&nbsp;</td>
+					<td>&nbsp;</td>
+				</tr>
+				<tr n:foreach="$files as $file">
+					<td><span class="glyphicon glyphicon-file"></span> <a n:href="showFile! file => $control->getRelativePath($file->getRealPath())" target="_blank" title="{$file->getRealPath()|relative}">{$file->getFilename()}</a></td>
+					<td class="text-right">{$file->getMTime()|date:'d.m.Y H:i:s'}</td>
+					<td class="text-right">{$file->getSize()|bytes}</td>
+					<td>
+						<a n:href="showFile! download => 1, file => $control->getRelativePath($file->getRealPath())"><span class="glyphicon glyphicon-download"></span></a>
+						<a n:href="deleteFile! file => $control->getRelativePath($file->getRealPath())" onclick="return confirm('Smazat soubor?');"><span class="glyphicon glyphicon-remove-circle"></span></a>
+					</td>
+				</tr>
+			{else}
+				<tr><td colspan="4">Žádné soubory!</td></tr>
+			{/if}
+		</tbody>
+</table>

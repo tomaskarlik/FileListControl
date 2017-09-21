@@ -1,0 +1,20 @@
+{
+	"name": "tomaskarlik/filelist",
+	"description": "File browser for Nette",
+	"keywords": ["file", "browser", "nette"],
+	"license": "BSD-3",
+	"authors": [
+		{ "name": "Tomáš Karlík", "homepage": "http://tomaskarlik.cz" }
+	],
+	"require": {
+		"php": ">=5.6",
+		"nette/application": "~2.4.0",
+		"latte/latte": "^2.4.0",
+		"nette/utils": "^2.4.0"
+	},
+	"autoload": {
+		"psr-4": {
+			"TomasKarlik\\FileList\\": "src"
+		}
+	}
+}
