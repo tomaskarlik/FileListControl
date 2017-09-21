@@ -48,3 +48,6 @@ final class ListPresenter extends Presenter
 
 }
 ```
+```latte
+{control logFileList}
+````
