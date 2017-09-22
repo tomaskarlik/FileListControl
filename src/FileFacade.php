@@ -103,9 +103,9 @@ final class FileFacade
 	public function verifyPath($basePath, $currentPath)
 	{
 		$basePath = realpath($basePath);
-		$currentPath = realpath($currentPath);
+		$currentPath = @realpath($currentPath);
 
-		if ( ! Strings::startsWith($currentPath, $basePath)) {
+		if ($currentPath === FALSE || ! Strings::startsWith($currentPath, $basePath)) {
 			throw new InvalidPathException(sprintf('File "%s" is not accessible!', $currentPath));
 		}
 
