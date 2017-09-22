@@ -5,8 +5,10 @@ namespace TomasKarlik\FileList;
 use Nette\Application\Responses\FileResponse;
 use Nette\Application\UI\Control;
 use Nette\Application\UI\ITemplate;
-use Nette\Utils\Finder;
-use Nette\Utils\Strings;
+use TomasKarlik\FileList\Exception\FileDeleteException;
+use TomasKarlik\FileList\Exception\FileIsNotWritableException;
+use TomasKarlik\FileList\Exception\FileNotFoundException;
+use TomasKarlik\FileList\Exception\InvalidPathException;
 
 
 final class FileListControl extends Control
@@ -18,6 +20,11 @@ final class FileListControl extends Control
 	private $directory;
 
 	/**
+	 * @var FileFacade
+	 */
+	private $fileFacade;
+
+	/**
 	 * @var string
 	 */
 	private $templateFile;
@@ -25,13 +32,16 @@ final class FileListControl extends Control
 
 	/**
 	 * @param string $directory
+	 * @param FileFacade $fileFacade
 	 */
-	public function __construct($directory)
+	public function __construct($directory, FileFacade $fileFacade)
 	{
 		parent::__construct();
 
-		$this->directory = realpath($directory);
+		$this->directory = $directory;
 		$this->templateFile = __DIR__ . '/templates/default.latte';
+
+		$this->fileFacade = $fileFacade;
 	}
 
 
@@ -40,18 +50,26 @@ final class FileListControl extends Control
 		$path = $this->getParameter('path', NULL);
 		$path = $this->directory . ($path ? '/' . $path : '');
 
-		if ( ! $this->verifyLogPath($path)) {
-			$this->flashMessage('Zadaná cesta neexistuje!', 'alert-danger');
-			$this->template->directories = [];
-			$this->template->files = [];
-			$this->template->breadcrumbs = [];
-			$this->template->parent = NULL;
+		$this->template->directories = [];
+		$this->template->files = [];
+		$this->template->breadcrumbs = [];
+		$this->template->parent = NULL;
 
-		} else {
-			$this->template->directories = $this->getDirectories($path);
-			$this->template->files = $this->getFiles($path);
-			$this->template->breadcrumbs = $this->getBreadcrumbParts($path);
-			$this->template->parent = $this->isRootDir($path) ? NULL : $this->getRelativePath(dirname($path));
+		try {
+			$this->fileFacade->verifyPath($this->directory, $path);
+			$this->template->directories = $this->fileFacade->getDirectories($path);
+			$this->template->files = $this->fileFacade->getFiles($path);
+
+			if ( ! $this->fileFacade->isRootDir($this->directory, $path)) {
+				$this->template->breadcrumbs = $this->getBreadcrumbParts($path);
+				$this->template->parent = $this->getRelativePath(dirname($path));
+			}
+
+		} catch (InvalidPathException $exception) {
+			$this->flashMessage('Zadaná cesta není přístupná!', 'alert-danger');
+
+		} catch (FileNotFoundException $exception) {
+			$this->flashMessage('Zadaná cesta neexistuje!', 'alert-danger');
 		}
 
 		$this->template->setFile($this->templateFile);
@@ -75,8 +93,15 @@ final class FileListControl extends Control
 	public function handleShowFile($file, $download = 0)
 	{
 		$file = $this->directory . '/' . $file;
-		if ( ! $this->verifyLogPath($file)) {
-			$this->flashMessage('Soubor neexistuje!', 'alert-danger');
+		try {
+			$this->fileFacade->verifyPath($this->directory, $file);
+
+		} catch (InvalidPathException $exception) {
+			$this->flashMessage('Zadaná cesta není přístupná!', 'alert-danger');
+			$this->redirect('this');
+
+		} catch (FileNotFoundException $exception) {
+			$this->flashMessage('Zadaná cesta neexistuje!', 'alert-danger');
 			$this->redirect('this');
 		}
 
@@ -95,21 +120,24 @@ final class FileListControl extends Control
 		$file = $this->directory . '/' . $file;
 		$path = NULL;
 
-		if ( ! $this->verifyLogPath($file)) {
+		try {
+			$this->fileFacade->verifyPath($this->directory, $file);
+			$path = $this->getRelativePath(dirname($file)); //path to return
+			$this->fileFacade->deleteFile($file);
+
+		} catch (FileIsNotWritableException $exception) {
+			$this->flashMessage('Soubor nelze smazat (přístupová práva)!', 'alert-warning');
+
+		} catch (InvalidPathException $exception) {
+			$this->flashMessage('Zadaná cesta není přístupná!', 'alert-danger');
+
+		} catch (FileNotFoundException $exception) {
 			$this->flashMessage('Soubor neexistuje!', 'alert-danger');
 
-		} else {
-			if ( ! is_writable($file)) {
-				$this->flashMessage('Soubor nelze smazat (přístupová práva)!', 'alert-warning');
-
-			} elseif (@unlink($file)) {
-				$this->flashMessage('Soubor byl smazán!', 'alert-info');
-
-			} else {
-				$this->flashMessage('Chyba!', 'alert-danger');
-			}
-			$path = $this->getRelativePath(dirname($file));
+		} catch (FileDeleteException $exception) {
+			$this->flashMessage('Chyba!', 'alert-danger');
 		}
+
 		$this->redirect('this', ['path' => $path]);
 	}
 
@@ -120,9 +148,7 @@ final class FileListControl extends Control
 	 */
 	public function getRelativePath($path)
 	{
-		$path = realpath($path);
-		$path = Strings::replace($path, sprintf('#^%s#', preg_quote($this->directory, '#')), '');
-		return ltrim($path, DIRECTORY_SEPARATOR);
+		return $this->fileFacade->getRelativePath($this->directory, $path);
 	}
 
 
@@ -158,57 +184,6 @@ final class FileListControl extends Control
 		}
 
 		return $breadcrumbs;
-	}
-
-
-	/**
-	 * @return array
-	 */
-	private function getDirectories($path)
-	{
-		$directories = Finder::findDirectories()->in($path);
-		$directories = iterator_to_array($directories);
-		ksort($directories);
-
-		return $directories;
-	}
-
-
-	/**
-	 * @return array
-	 */
-	private function getFiles($path)
-	{
-		$files = Finder::findFiles()->in($path);
-		$files = iterator_to_array($files);
-		ksort($files);
-
-		return $files;
-	}
-
-
-	/**
-	 * @param string $path
-	 * @return bool
-	 */
-	private function isRootDir($path)
-	{
-		$path = realpath($path);
-		return ($path === $this->directory);
-	}
-
-
-	/**
-	 * @param string $path
-	 * @return bool
-	 */
-	private function verifyLogPath($path)
-	{
-		$path = realpath($path);
-		if ( ! Strings::startsWith($path, $this->directory)) {
-			return FALSE;
-		}
-		return file_exists($path);
 	}
 
 }
