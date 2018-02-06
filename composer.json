@@ -2,7 +2,7 @@
 	"name": "tomaskarlik/filelist",
 	"description": "File browser for Nette",
 	"keywords": ["file", "browser", "nette"],
-	"license": "BSD-3",
+	"license": "BSD-3-Clause",
 	"authors": [
 		{ "name": "Tomáš Karlík", "homepage": "http://tomaskarlik.cz" }
 	],
